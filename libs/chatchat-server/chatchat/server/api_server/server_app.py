@@ -17,12 +17,18 @@ from chatchat.server.api_server.openai_routes import openai_router
 from chatchat.server.api_server.server_routes import server_router
 from chatchat.server.api_server.tool_routes import tool_router
 from chatchat.server.chat.completion import completion
+from chatchat.server.api_server.observability import (
+    RequestLoggingMiddleware,
+    install_exception_handlers,
+)
 from chatchat.server.utils import MakeFastAPIOffline
 
 
 def create_app(run_mode: str = None):
     app = FastAPI(title="Langchain-Chatchat API Server", version=__version__)
     MakeFastAPIOffline(app)
+    app.add_middleware(RequestLoggingMiddleware)
+    install_exception_handlers(app)
     # Add CORS middleware to allow all origins
     # 在config.py中设置OPEN_DOMAIN=True，允许跨域
     # set OPEN_DOMAIN=True in config.py to allow cross-domain

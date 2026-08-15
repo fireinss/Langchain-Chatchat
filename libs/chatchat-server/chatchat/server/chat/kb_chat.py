@@ -27,6 +27,12 @@ from chatchat.server.utils import (wrap_done, get_ChatOpenAI, get_default_llm,
 logger = build_logger()
 
 
+def _kb_recall_is_weak(docs: list) -> bool:
+    if not docs:
+        return True
+    return all(not (doc.get("page_content") or "").strip() for doc in docs)
+
+
 async def kb_chat(query: str = Body(..., description="用户输入", examples=["你好"]),
                 mode: Literal["local_kb", "temp_kb", "search_engine"] = Body("local_kb", description="知识来源"),
                 kb_name: str = Body("", description="mode=local_kb时为知识库名称；temp_kb时为临时知识库ID，search_engine时为搜索引擎名称", examples=["samples"]),
@@ -58,6 +64,7 @@ async def kb_chat(query: str = Body(..., description="用户输入", examples=["
                     description="使用的prompt模板名称(在prompt_settings.yaml中配置)"
                 ),
                 return_direct: bool = Body(False, description="直接返回检索结果，不送入 LLM"),
+                fallback_to_search: bool = Body(False, description="知识库检索不足时降级联网搜索"),
                 request: Request = None,
                 ):
     if mode == "local_kb":
@@ -76,14 +83,26 @@ async def kb_chat(query: str = Body(..., description="用户输入", examples=["
                 ok, msg = kb.check_embed_model()
                 if not ok:
                     raise ValueError(msg)
-                docs = await run_in_threadpool(search_docs,
+                kb_docs = await run_in_threadpool(search_docs,
                                                 query=query,
                                                 knowledge_base_name=kb_name,
                                                 top_k=top_k,
                                                 score_threshold=score_threshold,
                                                 file_name="",
                                                 metadata={})
-                source_documents = format_reference(kb_name, docs, api_address(is_public=True))
+                web_docs = []
+                if fallback_to_search and _kb_recall_is_weak(kb_docs):
+                    try:
+                        web_result = await run_in_threadpool(search_engine, query, top_k, kb_name)
+                        web_docs = [x.dict() for x in web_result.get("docs", [])]
+                    except Exception as exc:
+                        logger.warning("kb search fallback failed: %s", exc)
+                docs = kb_docs + web_docs
+                source_documents = format_reference(kb_name, kb_docs, api_address(is_public=True))
+                source_documents.extend(
+                    f"出处 [联网检索] {d.get('metadata', {}).get('source', '')}\n\n{d.get('page_content', '')}\n\n"
+                    for d in web_docs
+                )
             elif mode == "temp_kb":
                 ok, msg = check_embed_model()
                 if not ok:

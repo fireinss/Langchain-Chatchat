@@ -13,3 +13,4 @@ from .amap_weather import amap_weather
 from .wikipedia_search import wikipedia_search
 from .text2promql import text2promql
 from .url_reader import url_reader
+from .system_time import system_time
