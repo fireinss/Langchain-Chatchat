@@ -1,3 +1,4 @@
+> 本仓库是 [chatchat-space/Langchain-Chatchat](https://github.com/chatchat-space/Langchain-Chatchat) 的二次开发 fork，新增 RAG 检索降级路由、检索评测、Agent 工具与 API 可观测性，详见 [INCREMENTS.md](./INCREMENTS.md)。
 ![](docs/img/logo-long-chatchat-trans-v2.png)
 <a href="https://trendshift.io/repositories/329" target="_blank"><img src="https://trendshift.io/api/badge/repositories/329" alt="chatchat-space%2FLangchain-Chatchat | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
