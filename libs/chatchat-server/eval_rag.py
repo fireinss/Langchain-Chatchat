@@ -44,13 +44,29 @@ def call_kb_chat(base_url: str, question: str, kb_name: str, top_k: int,
     return body, elapsed_ms, None
 
 
-def tokenize(text: str):
-    return set(text.lower().replace(",", " ").replace(".", " ").replace("，", " ").replace("。", " ").split())
+def extract_answer(body):
+    content = body.get("content")
+    if isinstance(content, str) and content:
+        return content
+    for choice in body.get("choices") or []:
+        message = choice.get("message") or {}
+        content = message.get("content")
+        if isinstance(content, str) and content:
+            return content
+    return ""
+
+
+def doc_text(doc):
+    if isinstance(doc, str):
+        return doc
+    if isinstance(doc, dict):
+        return str(doc.get("page_content") or "")
+    return str(doc)
 
 
 def hit_tokens(page_content: str, expected_tokens: list):
-    tokens = tokenize(page_content or "")
-    return any(tok.lower() in tokens for tok in expected_tokens)
+    text = (page_content or "").lower()
+    return any(str(token).lower() in text for token in expected_tokens)
 
 
 def run_config(base_url, tests, kb_name, top_k, score_threshold, fallback,
@@ -67,12 +83,12 @@ def run_config(base_url, tests, kb_name, top_k, score_threshold, fallback,
             continue
         expected = item.get("expected_tokens") or []
         if answer_mode:
-            text = str(body.get("content") or "")
+            text = extract_answer(body)
             hit = hit_tokens(text, expected) if expected else False
             retrieved = len(body.get("docs") or [])
         else:
             docs = body.get("docs") or []
-            text = " ".join(str(d.get("page_content") or "") for d in docs)
+            text = " ".join(doc_text(d) for d in docs)
             hit = hit_tokens(text, expected) if expected else False
             retrieved = len(docs)
         hits += int(hit)

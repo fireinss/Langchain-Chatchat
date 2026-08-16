@@ -38,7 +38,8 @@ async def call_tool(
     if tool := get_tool(name):
         try:
             result = await tool.ainvoke(tool_input)
-            return {"data": result}
+            data = result.dict() if hasattr(result, "dict") else result
+            return {"data": data}
         except Exception:
             msg = f"failed to call tool '{name}'"
             logger.exception(msg)
